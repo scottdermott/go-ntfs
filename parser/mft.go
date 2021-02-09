@@ -2,6 +2,7 @@ package parser
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -340,7 +341,7 @@ func ParseMFTFile(
 			var file_names []*FILE_NAME
 			var si *STANDARD_INFORMATION
 			var size int64
-			//var residentDataHex string
+			var residentDataHex string
 			var residentDataText string
 			var isResident bool
 			for _, attr := range mft_entry.EnumerateAttributes(ntfs) {
@@ -365,7 +366,7 @@ func ParseMFTFile(
 						reader := attr.Data(ntfs)
 						n, _ := reader.ReadAt(b, 0)
 						b = b[:n]
-						//residentDataHex += fmt.Sprintf(hex.Dump(b))
+						residentDataHex += fmt.Sprintf(hex.Dump(b))
 						residentDataText += fmt.Sprintf(string(b))
 					}
 				case "$FILE_NAME":
@@ -393,9 +394,9 @@ func ParseMFTFile(
 			mft_id := mft_entry.Record_number()
 
 			output <- &MFTHighlight{
-				EntryNumber: int64(mft_id),
-				InUse:       mft_entry.Flags().IsSet("ALLOCATED"),
-				//ResidentDataHex:      residentDataHex,
+				EntryNumber:          int64(mft_id),
+				InUse:                mft_entry.Flags().IsSet("ALLOCATED"),
+				ResidentDataHex:      residentDataHex,
 				ResidentDataText:     residentDataText,
 				IsResident:           isResident,
 				ParentEntryNumber:    file_names[0].MftReference(),
