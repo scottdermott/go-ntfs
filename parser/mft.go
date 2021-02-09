@@ -340,7 +340,7 @@ func ParseMFTFile(
 			var file_names []*FILE_NAME
 			var si *STANDARD_INFORMATION
 			var size int64
-			var residentDataHex string
+			//var residentDataHex string
 			var residentDataText string
 			var isResident bool
 			for _, attr := range mft_entry.EnumerateAttributes(ntfs) {
