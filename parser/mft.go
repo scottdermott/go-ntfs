@@ -2,6 +2,7 @@ package parser
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -295,7 +296,10 @@ type MFTHighlight struct {
 	FileName             string
 	FileSize             int64
 	ReferenceCount       int64
+	ResidentDataHex      string
+	ResidentDataText     string
 	IsDir                bool
+	IsResident           bool
 	Created0x10          time.Time
 	Created0x30          time.Time
 	LastModified0x10     time.Time
@@ -337,13 +341,33 @@ func ParseMFTFile(
 			var file_names []*FILE_NAME
 			var si *STANDARD_INFORMATION
 			var size int64
-
+			var residentDataHex string
+			var residentDataText string
+			var isResident bool
 			for _, attr := range mft_entry.EnumerateAttributes(ntfs) {
 				attr_type := attr.Type()
 				switch attr_type.Name {
 				case "$DATA":
+					//fmt.Println(string(attr.PrintStats(ntfs)))
+					isResident = attr.IsResident()
 					if size == 0 {
 						size = attr.DataSize()
+					}
+					if size <= 640 {
+						// Grab the Resident Data
+						length := attr.Actual_size()
+						if length > 640 {
+							length = 640
+						}
+						if length < 0 {
+							length = 0
+						}
+						b := make([]byte, length)
+						reader := attr.Data(ntfs)
+						n, _ := reader.ReadAt(b, 0)
+						b = b[:n]
+						residentDataHex += fmt.Sprintf(hex.Dump(b))
+						residentDataText += fmt.Sprintf(string(b))
 					}
 				case "$FILE_NAME":
 					res := ntfs.Profile.FILE_NAME(
@@ -372,6 +396,9 @@ func ParseMFTFile(
 			output <- &MFTHighlight{
 				EntryNumber:          int64(mft_id),
 				InUse:                mft_entry.Flags().IsSet("ALLOCATED"),
+				ResidentDataHex:      residentDataHex,
+				ResidentDataText:     residentDataText,
+				IsResident:           isResident,
 				ParentEntryNumber:    file_names[0].MftReference(),
 				FullPath:             full_path,
 				FileName:             get_longest_name(file_names),
